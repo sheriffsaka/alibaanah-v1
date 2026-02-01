@@ -1,0 +1,5 @@
+{
+  "name": "Al-Ibaanah IntakeFlow",
+  "description": "A production-grade student enrollment and appointment management system for the Al-Ibaanah Arabic Center. Features a public registration portal, capacity-based booking, and a comprehensive admin dashboard with real-time analytics.",
+  "requestFramePermissions": []
+}
