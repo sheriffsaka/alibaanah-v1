@@ -37,6 +37,7 @@ export interface AppointmentSlot {
   endTime: string;
   capacity: number;
   enrolledCount: number;
+  gender: 'Male' | 'Female';
 }
 
 export interface AdminUser {
@@ -51,4 +52,17 @@ export interface SystemConfig {
   maxDailyCapacity: number;
   maxGroupSize: number;
   registrationOpen: boolean;
+  reminders: {
+    confirmationEmail: boolean;
+    twentyFourHourEmail: boolean;
+    dayOfEmail: boolean;
+  };
+}
+
+export interface NotificationLog {
+  id: string;
+  type: 'Confirmation' | '24h Reminder' | 'Day-of Reminder' | 'Test';
+  recipient: string;
+  sentAt: string;
+  status: 'Sent' | 'Failed';
 }

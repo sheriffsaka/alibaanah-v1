@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../services/dbService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useLanguage } from '../../contexts/LanguageContext.tsx';
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     setStats(db.getStats());
@@ -23,12 +25,12 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Total Registrations', value: stats.total, icon: 'fa-users', color: 'blue' },
-          { label: 'Today Expected', value: stats.todayExpected, icon: 'fa-calendar-day', color: 'amber' },
-          { label: 'Checked In', value: stats.checkedIn, icon: 'fa-check-circle', color: 'emerald' },
-          { label: 'Slot Utilization', value: `${Math.round((stats.total / 100) * 100)}%`, icon: 'fa-chart-pie', color: 'purple' },
+          { label: t('dashboard_total_regs'), value: stats.total, icon: 'fa-users', color: 'blue' },
+          { label: t('dashboard_checked_in'), value: stats.checkedIn, icon: 'fa-check-circle', color: 'emerald' },
+          { label: t('dashboard_male_students'), value: stats.maleCount, icon: 'fa-mars', color: 'sky' },
+          { label: t('dashboard_female_students'), value: stats.femaleCount, icon: 'fa-venus', color: 'pink' },
         ].map((card, i) => (
           <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white bg-${card.color}-500`}>
