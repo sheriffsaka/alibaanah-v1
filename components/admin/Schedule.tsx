@@ -1,13 +1,20 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { db } from '../../services/dbService';
-import { AppointmentSlot } from '../../types';
+import { AppointmentSlot, AdminUser, UserRole } from '../../types';
 
 const Schedule: React.FC = () => {
   const [slots, setSlots] = useState<AppointmentSlot[]>(db.getSlots());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<Partial<AppointmentSlot> | null>(null);
   const [error, setError] = useState('');
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+
+  useEffect(() => {
+    setCurrentUser(db.getCurrentUser());
+  }, []);
+
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
 
   const openModal = (slot: Partial<AppointmentSlot> | null = null) => {
     setError('');
@@ -23,13 +30,35 @@ const Schedule: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentSlot) return;
-
+  
     try {
       if (currentSlot.id) {
-        // Update
-        db.updateSlot(currentSlot.id, { capacity: currentSlot.capacity, gender: currentSlot.gender });
+        // --- UPDATE LOGIC ---
+        const originalSlot = db.getSlotById(currentSlot.id);
+        if (!originalSlot) throw new Error("Original slot not found.");
+
+        const hasEnrollments = originalSlot.enrolledCount > 0;
+        const coreDetailsChanged = originalSlot.date !== currentSlot.date ||
+                                 originalSlot.startTime !== currentSlot.startTime ||
+                                 originalSlot.endTime !== currentSlot.endTime ||
+                                 originalSlot.gender !== currentSlot.gender;
+
+        if (isSuperAdmin && hasEnrollments && coreDetailsChanged) {
+          const proceed = window.confirm(
+            "WARNING: This slot has students enrolled. Editing its date, time, or gender will affect existing bookings. Are you sure you want to proceed?"
+          );
+          if (!proceed) return;
+        }
+
+        db.updateSlot(currentSlot.id, {
+            date: currentSlot.date,
+            startTime: currentSlot.startTime,
+            endTime: currentSlot.endTime,
+            capacity: currentSlot.capacity,
+            gender: currentSlot.gender,
+        });
       } else {
-        // Create
+        // --- CREATE LOGIC ---
         db.addSlot({
           date: currentSlot.date || '',
           startTime: currentSlot.startTime || '',
@@ -71,6 +100,8 @@ const Schedule: React.FC = () => {
       return acc;
     }, {} as Record<string, AppointmentSlot[]>);
   }, [slots]);
+
+  const isExistingSlot = !!currentSlot?.id;
 
   return (
     <div className="space-y-8">
@@ -136,22 +167,22 @@ const Schedule: React.FC = () => {
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Date</label>
-                  <input required type="date" name="date" value={currentSlot.date} onChange={handleInputChange} disabled={!!currentSlot.id} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100" />
+                  <input required type="date" name="date" value={currentSlot.date} onChange={handleInputChange} disabled={isExistingSlot && !isSuperAdmin} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Gender Designation</label>
-                  <select name="gender" value={currentSlot.gender} onChange={handleInputChange} disabled={!!currentSlot.id && (currentSlot.enrolledCount ?? 0) > 0} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100">
+                  <select name="gender" value={currentSlot.gender} onChange={handleInputChange} disabled={isExistingSlot && !isSuperAdmin} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100">
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Start Time</label>
-                  <input required type="time" name="startTime" value={currentSlot.startTime} onChange={handleInputChange} disabled={!!currentSlot.id} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100" />
+                  <input required type="time" name="startTime" value={currentSlot.startTime} onChange={handleInputChange} disabled={isExistingSlot && !isSuperAdmin} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">End Time</label>
-                  <input required type="time" name="endTime" value={currentSlot.endTime} onChange={handleInputChange} disabled={!!currentSlot.id} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100" />
+                  <input required type="time" name="endTime" value={currentSlot.endTime} onChange={handleInputChange} disabled={isExistingSlot && !isSuperAdmin} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700">Capacity</label>
