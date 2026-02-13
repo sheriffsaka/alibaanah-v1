@@ -1,6 +1,14 @@
 
 import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
 
+// Statically import translations to ensure they are bundled by Vite
+import enTranslations from '../locales/en.json';
+import arTranslations from '../locales/ar.json';
+import frTranslations from '../locales/fr.json';
+import urTranslations from '../locales/ur.json';
+import zhTranslations from '../locales/zh.json';
+import uzTranslations from '../locales/uz.json';
+
 interface LanguageContextType {
   locale: string;
   setLocale: (locale: string) => void;
@@ -10,9 +18,16 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 const availableLocales = ['en', 'ar', 'fr', 'ur', 'zh', 'uz'];
+const translations = {
+  en: enTranslations,
+  ar: arTranslations,
+  fr: frTranslations,
+  ur: urTranslations,
+  zh: zhTranslations,
+  uz: uzTranslations,
+};
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [translations, setTranslations] = useState<Record<string, any> | null>(null);
   const [locale, setLocaleState] = useState(() => {
     // 1. Check for a user's previously saved preference
     const savedLocale = localStorage.getItem('locale');
@@ -30,28 +45,6 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return 'en';
   });
 
-  useEffect(() => {
-    const fetchTranslations = async () => {
-      const translationsData: Record<string, any> = {};
-      await Promise.all(
-        availableLocales.map(async (lang) => {
-          try {
-            // Fetch paths are relative to the index.html file in the browser
-            const response = await fetch(`./locales/${lang}.json`);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            translationsData[lang] = data;
-          } catch (e) {
-            console.error(`Could not load locale file: ./locales/${lang}.json`, e);
-          }
-        })
-      );
-      setTranslations(translationsData);
-    };
-
-    fetchTranslations();
-  }, []);
-
   const setLocale = (newLocale: string) => {
     setLocaleState(newLocale);
     localStorage.setItem('locale', newLocale);
@@ -64,11 +57,9 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [locale]);
 
   const t = useMemo(() => (key: string): string => {
-    if (!translations) {
-      return key; // Return key as fallback while translations are loading
-    }
-    return translations[locale]?.[key] || key;
-  }, [locale, translations]);
+    const typedLocale = locale as keyof typeof translations;
+    return translations[typedLocale]?.[key] || key;
+  }, [locale]);
 
   return (
     <LanguageContext.Provider value={{ locale, setLocale, t }}>
