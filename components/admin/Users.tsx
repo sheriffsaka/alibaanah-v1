@@ -2,19 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../services/dbService';
 import { AdminUser, UserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext.tsx';
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>(db.getAdmins());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Partial<AdminUser> | null>(null);
-  const [loggedInUser, setLoggedInUser] = useState<AdminUser | null>(null);
-
-  useEffect(() => {
-    setLoggedInUser(db.getCurrentUser());
-  }, []);
+  const { user: loggedInUser } = useAuth();
 
   const openModal = (user: Partial<AdminUser> | null = null) => {
-    setCurrentUser(user ? { ...user } : { username: '', role: UserRole.FRONT_DESK, active: true });
+    setCurrentUser(user ? { ...user } : { username: '', role: UserRole.FRONT_DESK, active: true, gender: 'Male' });
     setIsModalOpen(true);
   };
 
@@ -35,7 +32,8 @@ const Users: React.FC = () => {
       db.addAdmin({ 
         username: currentUser.username || '', 
         role: currentUser.role || UserRole.FRONT_DESK,
-        active: currentUser.active || false
+        active: currentUser.active || false,
+        gender: currentUser.role === UserRole.SUPER_ADMIN ? undefined : (currentUser.gender || 'Male'),
       });
     }
     setUsers([...db.getAdmins()]);
@@ -68,6 +66,7 @@ const Users: React.FC = () => {
               <tr className="text-xs uppercase text-gray-400 border-b bg-gray-50">
                 <th className="px-6 py-4">Username</th>
                 <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Gender</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Actions</th>
               </tr>
@@ -82,6 +81,7 @@ const Users: React.FC = () => {
                     )}
                   </td>
                   <td className="px-6 py-4">{user.role}</td>
+                  <td className="px-6 py-4">{user.gender || 'N/A'}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${user.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                       {user.active ? 'Active' : 'Inactive'}
@@ -123,6 +123,15 @@ const Users: React.FC = () => {
                     {Object.values(UserRole).map(role => <option key={role} value={role}>{role}</option>)}
                   </select>
                 </div>
+                {currentUser.role !== UserRole.SUPER_ADMIN && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Gender Assignment</label>
+                    <select name="gender" value={currentUser.gender || 'Male'} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                )}
                 <div className="flex items-center pt-2">
                   <input type="checkbox" name="active" id="active" checked={!!currentUser.active} onChange={handleInputChange} className="h-4 w-4 text-ibaana-primary border-gray-300 rounded" />
                   <label htmlFor="active" className="ml-2 block text-sm text-gray-900">User is Active</label>

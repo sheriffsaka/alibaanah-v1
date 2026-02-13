@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   LOGO_URL, 
@@ -16,6 +16,21 @@ import { useLanguage } from '../../contexts/LanguageContext.tsx';
 const LandingPage: React.FC = () => {
   const { t } = useLanguage();
   const config = db.getConfig();
+  const [activeVideo, setActiveVideo] = useState<number | null>(null);
+
+  const videoUrls: Record<number, string> = {
+    1: "https://www.youtube.com/embed/g35o6jCjQG4?autoplay=1", // Placeholder: How to Register
+    2: "https://www.youtube.com/embed/rokGy0huYEA?autoplay=1", // Placeholder: How to Book Slot
+    3: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1", // Placeholder: What to expect on arrival
+  };
+
+  const VideoOverlay = () => (
+    <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white">
+        <i className="fas fa-play text-white text-2xl ml-1"></i>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-0">
@@ -71,28 +86,52 @@ const LandingPage: React.FC = () => {
           </div>
 
           <div className="hidden lg:block relative">
-            <div className="bg-white/5 border border-white/10 p-10 rounded-[4rem] backdrop-blur-md shadow-2xl relative overflow-hidden">
-               <div className="space-y-6 relative z-10">
-                  <div className="flex items-center space-x-4 p-4 bg-white/10 rounded-2xl border border-white/5">
-                    <div className="w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center text-emerald-900 font-bold text-xl italic">1</div>
-                    <p className="font-bold text-emerald-50">{t('step_1')}</p>
-                  </div>
-                  <div className="flex items-center space-x-4 p-4 bg-white/10 rounded-2xl border border-white/5">
-                    <div className="w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center text-emerald-900 font-bold text-xl italic">2</div>
-                    <p className="font-bold text-emerald-50">{t('step_2')}</p>
-                  </div>
-                  <div className="flex items-center space-x-4 p-4 bg-emerald-500/20 rounded-2xl border border-emerald-500/40">
-                    <div className="w-12 h-12 bg-emerald-400 rounded-xl flex items-center justify-center text-emerald-900 font-bold text-xl italic">3</div>
-                    <p className="font-bold text-emerald-50">{t('step_3')}</p>
-                  </div>
+            <div className="bg-white/5 border border-white/10 p-10 rounded-[4rem] backdrop-blur-md shadow-2xl space-y-6">
+               <div 
+                 className="relative overflow-hidden group cursor-pointer flex items-center space-x-4 p-4 bg-white/10 rounded-2xl border border-white/5"
+                 onClick={() => setActiveVideo(1)}
+               >
+                 <div className="w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center text-emerald-900 font-bold text-xl italic">1</div>
+                 <p className="font-bold text-emerald-50">{t('step_1')}</p>
+                 <VideoOverlay />
                </div>
-               <div className="absolute -bottom-10 -end-10 opacity-10">
-                 <i className="fas fa-calendar-alt text-[15rem]"></i>
+               <div 
+                 className="relative overflow-hidden group cursor-pointer flex items-center space-x-4 p-4 bg-white/10 rounded-2xl border border-white/5"
+                 onClick={() => setActiveVideo(2)}
+               >
+                 <div className="w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center text-emerald-900 font-bold text-xl italic">2</div>
+                 <p className="font-bold text-emerald-50">{t('step_2')}</p>
+                 <VideoOverlay />
+               </div>
+               <div 
+                 className="relative overflow-hidden group cursor-pointer flex items-center space-x-4 p-4 bg-emerald-500/20 rounded-2xl border border-emerald-500/40"
+                 onClick={() => setActiveVideo(3)}
+               >
+                 <div className="w-12 h-12 bg-emerald-400 rounded-xl flex items-center justify-center text-emerald-900 font-bold text-xl italic">3</div>
+                 <p className="font-bold text-emerald-50">{t('step_3')}</p>
+                 <VideoOverlay />
                </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Video Player Modal */}
+      {activeVideo && (
+        <div className="fixed inset-0 bg-black/80 z-[999] flex items-center justify-center animate-fade-in" onClick={() => setActiveVideo(null)}>
+            <div className="relative w-full max-w-4xl aspect-video p-4" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => setActiveVideo(null)} className="absolute -top-2 -right-2 text-white bg-black rounded-full w-8 h-8 flex items-center justify-center text-2xl z-10">&times;</button>
+                <iframe 
+                    className="w-full h-full rounded-lg"
+                    src={videoUrls[activeVideo]}
+                    title="YouTube video player" 
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen>
+                </iframe>
+            </div>
+        </div>
+      )}
 
       {/* Why Use IntakeFlow */}
       <section className="py-24 bg-white">

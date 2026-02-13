@@ -3,17 +3,18 @@ import { Student, AppointmentSlot, ArabicLevel, SystemConfig, UserRole, AdminUse
 
 // Mock initial data
 const MOCK_SLOTS: AppointmentSlot[] = [
-  { id: '1', date: '2024-06-01', startTime: '09:00', endTime: '10:30', capacity: 10, enrolledCount: 5, gender: 'Male' },
-  { id: '2', date: '2024-06-01', startTime: '09:00', endTime: '10:30', capacity: 15, enrolledCount: 8, gender: 'Female' },
-  { id: '3', date: '2024-06-01', startTime: '11:00', endTime: '12:30', capacity: 10, enrolledCount: 10, gender: 'Male' },
-  { id: '4', date: '2024-06-01', startTime: '11:00', endTime: '12:30', capacity: 15, enrolledCount: 7, gender: 'Female' },
-  { id: '5', date: '2024-06-02', startTime: '09:00', endTime: '10:30', capacity: 10, enrolledCount: 1, gender: 'Male' },
-  { id: '6', date: '2024-06-02', startTime: '09:00', endTime: '10:30', capacity: 15, enrolledCount: 0, gender: 'Female' },
+  { id: '1', date: '2026-03-01', startTime: '09:00', endTime: '10:30', capacity: 10, enrolledCount: 5, gender: 'Male' },
+  { id: '2', date: '2026-03-01', startTime: '09:00', endTime: '10:30', capacity: 15, enrolledCount: 8, gender: 'Female' },
+  { id: '3', date: '2026-03-01', startTime: '11:00', endTime: '12:30', capacity: 10, enrolledCount: 10, gender: 'Male' },
+  { id: '4', date: '2026-03-01', startTime: '11:00', endTime: '12:30', capacity: 15, enrolledCount: 7, gender: 'Female' },
+  { id: '5', date: '2026-03-02', startTime: '09:00', endTime: '10:30', capacity: 10, enrolledCount: 1, gender: 'Male' },
+  { id: '6', date: '2026-03-02', startTime: '09:00', endTime: '10:30', capacity: 15, enrolledCount: 0, gender: 'Female' },
 ];
 
 const MOCK_ADMINS: AdminUser[] = [
   { id: 'admin-1', username: 'superadmin', role: UserRole.SUPER_ADMIN, active: true },
-  { id: 'admin-2', username: 'desk1', role: UserRole.FRONT_DESK, active: true },
+  { id: 'admin-2', username: 'desk_male', role: UserRole.FRONT_DESK, active: true, gender: 'Male' },
+  { id: 'admin-3', username: 'desk_female', role: UserRole.FRONT_DESK, active: true, gender: 'Female' },
 ];
 
 class DBService {
@@ -38,6 +39,7 @@ class DBService {
       const parsed = JSON.parse(saved);
       this.students = parsed.students || [];
       this.slots = parsed.slots || [...MOCK_SLOTS];
+      this.admins = parsed.admins || [...MOCK_ADMINS];
       this.config = { ...this.config, ...(parsed.config || {}) };
       this.notificationLogs = parsed.notificationLogs || [];
     } else {
@@ -51,17 +53,16 @@ class DBService {
       slots: this.slots,
       config: this.config,
       notificationLogs: this.notificationLogs,
+      admins: this.admins,
     }));
   }
 
-  getCurrentUser(): AdminUser {
-    // In a real app, this would involve session/token management.
-    // For this mock service, we'll just return the superadmin.
-    return this.admins[0];
-  }
-
-  getSlots() {
-    return this.slots.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  getSlots(gender?: 'Male' | 'Female'): AppointmentSlot[] {
+    const allSlots = this.slots.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+     if (gender) {
+        return allSlots.filter(s => s.gender === gender);
+    }
+    return allSlots;
   }
 
   addSlot(slotData: Omit<AppointmentSlot, 'id' | 'enrolledCount'>): AppointmentSlot {
@@ -96,7 +97,10 @@ class DBService {
     return this.slots.find(s => s.id === id);
   }
 
-  getStudents() {
+  getStudents(gender?: 'Male' | 'Female'): Student[] {
+    if (gender) {
+        return this.students.filter(s => s.gender === gender);
+    }
     return this.students;
   }
 
@@ -155,9 +159,13 @@ class DBService {
     return this.notificationLogs;
   }
 
-  checkIn(code: string): Student {
+  checkIn(code: string, userGender?: 'Male' | 'Female'): Student {
     const student = this.students.find(s => s.registrationCode === code || s.phoneNumber === code);
     if (!student) throw new Error("Student not found");
+
+    if (userGender && student.gender !== userGender) {
+      throw new Error("Access denied: You can only check in students of your own gender.");
+    }
     if (student.checkedIn) throw new Error("Already checked in");
     
     student.checkedIn = true;
@@ -166,23 +174,25 @@ class DBService {
     return student;
   }
 
-  getStats() {
-    const total = this.students.length;
-    const checkedIn = this.students.filter(s => s.checkedIn).length;
-    const levelCounts = this.students.reduce((acc, s) => {
+  getStats(gender?: 'Male' | 'Female') {
+    const relevantStudents = this.getStudents(gender);
+    
+    const total = relevantStudents.length;
+    const checkedIn = relevantStudents.filter(s => s.checkedIn).length;
+    const levelCounts = relevantStudents.reduce((acc, s) => {
       acc[s.arabicLevel] = (acc[s.arabicLevel] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const maleCount = this.students.filter(s => s.gender === 'Male').length;
-    const femaleCount = this.students.filter(s => s.gender === 'Female').length;
+    const maleCount = relevantStudents.filter(s => s.gender === 'Male').length;
+    const femaleCount = relevantStudents.filter(s => s.gender === 'Female').length;
 
     return {
       total,
       checkedIn,
       booked: total - checkedIn,
       levelCounts,
-      todayExpected: this.students.length, // Simplification for demo
+      todayExpected: relevantStudents.length, // Simplification for demo
       maleCount,
       femaleCount
     };
@@ -196,6 +206,7 @@ class DBService {
       id: `admin-${Math.random().toString(36).substr(2, 9)}`,
     };
     this.admins.push(newUser);
+    this.persist();
     return newUser;
   }
 
@@ -203,6 +214,7 @@ class DBService {
     const admin = this.admins.find(a => a.id === id);
     if (!admin) throw new Error("Admin user not found");
     Object.assign(admin, updates);
+    this.persist();
     return admin;
   }
 

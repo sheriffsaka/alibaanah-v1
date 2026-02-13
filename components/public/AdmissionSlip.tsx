@@ -14,6 +14,7 @@ const AdmissionSlip: React.FC = () => {
   const [student, setStudent] = useState<Student | null>(null);
   const [slot, setSlot] = useState<AppointmentSlot | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const slipRef = useRef<HTMLDivElement>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -45,8 +46,56 @@ const AdmissionSlip: React.FC = () => {
 
   if (!student || !slot) return <div className="text-center py-20 font-medium text-gray-500">{t('slip_not_found')}</div>;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!slipRef.current || isPrinting) return;
+
+    setIsPrinting(true);
+    try {
+      const canvas = await html2canvas(slipRef.current, {
+        useCORS: true,
+        scale: 2, // Higher quality for printing
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const image = canvas.toDataURL('image/png', 1.0);
+      const printWindow = window.open('', '_blank');
+      
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>${t('admission_slip')} - ${student?.registrationCode}</title>
+              <style>
+                body { margin: 0; }
+                img { width: 100%; height: auto; }
+                @media print {
+                  @page { size: a4 portrait; margin: 0; }
+                  html, body { height: 100%; }
+                  img { page-break-inside: avoid; }
+                }
+              </style>
+            </head>
+            <body>
+              <img src="${image}" />
+              <script>
+                window.onload = function() {
+                  window.print();
+                }
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      } else {
+        throw new Error('Could not open print window. Please check your browser pop-up settings.');
+      }
+    } catch (error: any) {
+      console.error('Failed to generate print view:', error);
+      alert(`There was an error preparing your document for printing. Please try again. (${error.message || ''})`);
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const handleDownload = async () => {
@@ -188,9 +237,11 @@ const AdmissionSlip: React.FC = () => {
         </button>
         <button 
           onClick={handlePrint}
-          className="w-full sm:w-auto bg-gray-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-black transition shadow-xl flex items-center justify-center"
+          disabled={isPrinting}
+          className="w-full sm:w-auto bg-gray-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-black transition shadow-xl flex items-center justify-center disabled:opacity-50"
         >
-          <i className="fas fa-print me-3"></i> {t('print_pdf_button')}
+          <i className={`fas ${isPrinting ? 'fa-spinner fa-spin' : 'fa-print'} me-3`}></i> 
+          {isPrinting ? 'Preparing...' : t('print_pdf_button')}
         </button>
         <Link 
           to="/"

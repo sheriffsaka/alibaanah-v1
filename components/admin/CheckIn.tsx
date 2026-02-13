@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '../../services/dbService';
-import { Student } from '../../types';
+import { Student, UserRole } from '../../types';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useAuth } from '../../contexts/AuthContext.tsx';
 
 const CheckIn: React.FC = () => {
   const [query, setQuery] = useState('');
@@ -10,6 +11,7 @@ const CheckIn: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!isScanning) return;
@@ -50,6 +52,13 @@ const CheckIn: React.FC = () => {
         s.phoneNumber === searchQuery || 
         s.fullName.toLowerCase().includes(searchQuery.toLowerCase())
       );
+
+      if (student && user && user.role !== UserRole.SUPER_ADMIN && user.gender && student.gender !== user.gender) {
+          setError(`Access Denied: You do not have permission to view this student's record.`);
+          setResult(null);
+          return;
+      }
+
       if (student) {
         setResult(student);
       } else {
@@ -64,7 +73,8 @@ const CheckIn: React.FC = () => {
   const handleCheckIn = () => {
     if (!result) return;
     try {
-      db.checkIn(result.registrationCode);
+      const genderToCheck = user?.role === UserRole.SUPER_ADMIN ? undefined : user?.gender;
+      db.checkIn(result.registrationCode, genderToCheck);
       setSuccess(`${result.fullName} has been successfully checked in.`);
       setResult({ ...result, checkedIn: true });
     } catch (err: any) {

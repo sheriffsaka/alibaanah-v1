@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { APP_NAME, LOGO_URL, OFFICIAL_SITE_URL } from '../../constants.tsx';
 import { db } from '../../services/dbService';
-import { AdminUser } from '../../types';
 import LanguageSwitcher from './LanguageSwitcher.tsx';
 import { useLanguage } from '../../contexts/LanguageContext.tsx';
+import { useAuth } from '../../contexts/AuthContext.tsx';
+import { UserRole } from '../../types.ts';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,17 +17,11 @@ const Layout: React.FC<LayoutProps> = ({ children, isAdmin = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
+  const { user, logout } = useAuth();
   const isHome = location.pathname === '/';
   const config = db.getConfig();
-  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isAdmin) {
-      setCurrentUser(db.getCurrentUser());
-    }
-  }, [isAdmin]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,6 +32,22 @@ const Layout: React.FC<LayoutProps> = ({ children, isAdmin = false }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+  
+  const allAdminLinks = [
+    { path: '/admin', label: 'Dashboard', roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.FRONT_DESK] },
+    { path: '/admin/check-in', label: 'Check-In', roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.FRONT_DESK] },
+    { path: '/admin/schedule', label: 'Schedule', roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN] },
+    { path: '/admin/notifications', label: 'Notifications', roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN] },
+    { path: '/admin/users', label: 'Users', roles: [UserRole.SUPER_ADMIN] },
+    { path: '/admin/settings', label: 'Settings', roles: [UserRole.SUPER_ADMIN] },
+  ];
+
+  const availableLinks = user ? allAdminLinks.filter(link => link.roles.includes(user.role)) : [];
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -95,28 +106,25 @@ const Layout: React.FC<LayoutProps> = ({ children, isAdmin = false }) => {
               </>
             )}
             
-            {isAdmin && currentUser && (
+            {isAdmin && user && (
               <>
-                <Link to="/admin" className="text-gray-300 hover:text-white transition text-xs font-black uppercase tracking-widest">Dashboard</Link>
-                <Link to="/admin/check-in" className="text-gray-300 hover:text-white transition text-xs font-black uppercase tracking-widest">Check-In</Link>
-                <Link to="/admin/schedule" className="text-gray-300 hover:text-white transition text-xs font-black uppercase tracking-widest">Schedule</Link>
-                <Link to="/admin/notifications" className="text-gray-300 hover:text-white transition text-xs font-black uppercase tracking-widest">Notifications</Link>
-                <Link to="/admin/users" className="text-gray-300 hover:text-white transition text-xs font-black uppercase tracking-widest">Users</Link>
-                <Link to="/admin/settings" className="text-gray-300 hover:text-white transition text-xs font-black uppercase tracking-widest">Settings</Link>
+                {availableLinks.map(link => (
+                   <Link key={link.path} to={link.path} className="text-gray-300 hover:text-white transition text-xs font-black uppercase tracking-widest">{link.label}</Link>
+                ))}
                 
                 <div className="relative" ref={dropdownRef}>
                   <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center space-x-2 bg-gray-700/50 hover:bg-gray-700 px-3 py-2 rounded-lg">
-                    <span className="text-white font-bold text-sm">{currentUser.username}</span>
+                    <span className="text-white font-bold text-sm">{user.username}</span>
                     <i className={`fas fa-chevron-down text-white/50 text-xs transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
                   </button>
                   {isDropdownOpen && (
                     <div className="absolute end-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 animate-fade-in">
                       <div className="px-4 py-2 text-xs text-gray-500 border-b">
-                        <p className="font-bold text-gray-800">{currentUser.username}</p>
-                        <p>{currentUser.role}</p>
+                        <p className="font-bold text-gray-800">{user.username}</p>
+                        <p>{user.role}</p>
                       </div>
                       <button 
-                        onClick={() => navigate('/')} 
+                        onClick={handleLogout} 
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
                       >
                         <i className="fas fa-sign-out-alt me-2"></i> Sign Out
@@ -128,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children, isAdmin = false }) => {
             )}
             
             {!isAdmin && (
-              <Link to="/admin" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-ibaana-primary">{t('staff_login')}</Link>
+              <Link to="/login" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-ibaana-primary">{t('staff_login')}</Link>
             )}
           </nav>
 

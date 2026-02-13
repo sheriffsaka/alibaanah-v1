@@ -1,24 +1,27 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { db } from '../../services/dbService';
-import { AppointmentSlot, AdminUser, UserRole } from '../../types';
+import { AppointmentSlot, UserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext.tsx';
 
 const Schedule: React.FC = () => {
-  const [slots, setSlots] = useState<AppointmentSlot[]>(db.getSlots());
+  const [slots, setSlots] = useState<AppointmentSlot[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<Partial<AppointmentSlot> | null>(null);
   const [error, setError] = useState('');
-  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+  const { user: loggedInUser } = useAuth();
+
+  const isSuperAdmin = loggedInUser?.role === UserRole.SUPER_ADMIN;
 
   useEffect(() => {
-    setCurrentUser(db.getCurrentUser());
-  }, []);
-
-  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
+    const userGender = isSuperAdmin ? undefined : loggedInUser?.gender;
+    setSlots(db.getSlots(userGender));
+  }, [loggedInUser, isSuperAdmin]);
 
   const openModal = (slot: Partial<AppointmentSlot> | null = null) => {
     setError('');
-    setCurrentSlot(slot ? { ...slot } : { date: '', startTime: '09:00', endTime: '10:30', capacity: 20, gender: 'Male' });
+    const defaultGender = isSuperAdmin ? 'Male' : loggedInUser?.gender || 'Male';
+    setCurrentSlot(slot ? { ...slot } : { date: '', startTime: '09:00', endTime: '10:30', capacity: 20, gender: defaultGender });
     setIsModalOpen(true);
   };
 
@@ -67,7 +70,8 @@ const Schedule: React.FC = () => {
           gender: currentSlot.gender || 'Male',
         });
       }
-      setSlots([...db.getSlots()]);
+      const userGender = isSuperAdmin ? undefined : loggedInUser?.gender;
+      setSlots([...db.getSlots(userGender)]);
       closeModal();
     } catch (err: any) {
       setError(err.message);
@@ -78,7 +82,8 @@ const Schedule: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this slot? This cannot be undone.')) {
       try {
         db.deleteSlot(id);
-        setSlots([...db.getSlots()]);
+        const userGender = isSuperAdmin ? undefined : loggedInUser?.gender;
+        setSlots([...db.getSlots(userGender)]);
       } catch (err: any) {
         alert(err.message);
       }
@@ -153,7 +158,7 @@ const Schedule: React.FC = () => {
             </div>
           </div>
         ))}
-        {slots.length === 0 && <p className="text-center text-gray-500 py-10">No appointment slots have been created yet.</p>}
+        {slots.length === 0 && <p className="text-center text-gray-500 py-10">No appointment slots have been created for your section.</p>}
       </div>
 
       {isModalOpen && currentSlot && (
@@ -171,7 +176,7 @@ const Schedule: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Gender Designation</label>
-                  <select name="gender" value={currentSlot.gender} onChange={handleInputChange} disabled={isExistingSlot && !isSuperAdmin} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100">
+                  <select name="gender" value={currentSlot.gender} onChange={handleInputChange} disabled={!isSuperAdmin} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 disabled:bg-gray-100">
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>

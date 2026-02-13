@@ -46,6 +46,7 @@ export interface AdminUser {
   role: UserRole;
   active: boolean;
   lastLogin?: string;
+  gender?: 'Male' | 'Female';
 }
 
 export interface SystemConfig {
